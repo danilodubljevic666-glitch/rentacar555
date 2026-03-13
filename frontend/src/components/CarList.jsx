@@ -13,6 +13,9 @@ const CarList = () => {
     const [selectedCar, setSelectedCar] = useState(null);
     const [showBookingModal, setShowBookingModal] = useState(false);
 
+    // API URL iz environment varijable
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
     useEffect(() => {
         fetchAvailableCars();
     }, [startDate, endDate]);
@@ -23,13 +26,24 @@ const CarList = () => {
             const formattedStart = startDate.toISOString().split('T')[0];
             const formattedEnd = endDate.toISOString().split('T')[0];
             
+            console.log('Fetching cars from:', API_URL); // Za debugging
+            console.log('Dates:', formattedStart, formattedEnd);
+            
             const response = await fetch(
-                `http://localhost:5000/api/available-cars?start_date=${formattedStart}&end_date=${formattedEnd}`
+                `${API_URL}/api/available-cars?start_date=${formattedStart}&end_date=${formattedEnd}`
             );
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
             const data = await response.json();
+            console.log('Received cars:', data);
             setCars(data);
         } catch (error) {
             console.error('Greška pri učitavanju automobila:', error);
+            // Postavi prazan niz u slučaju greške
+            setCars([]);
         } finally {
             setLoading(false);
         }
@@ -37,7 +51,7 @@ const CarList = () => {
 
     const handleBooking = async (bookingData) => {
         try {
-            const response = await fetch('http://localhost:5000/api/reservations', {
+            const response = await fetch(`${API_URL}/api/reservations`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

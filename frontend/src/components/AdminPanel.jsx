@@ -66,14 +66,12 @@ const AdminPanel = ({ admin, onLogout }) => {
 
     const updateStatus = async (id, newStatus) => {
         try {
-            const response = await fetch(`http://localhost:5000/api/admin/reservations/${id}/status`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...getAuthHeader()
-                },
-                body: JSON.stringify({ status: newStatus })
-            });
+           const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+// U svim fetch pozivima:
+const response = await fetch(`${API_URL}/api/admin/reservations`, {
+    headers: getAuthHeader()
+});
             
             if (response.ok) {
                 // Kad je status postavljen na "completed", makni rezervaciju iz lokalnog stanja

@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: rentacar-backend
+    env: node
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: DB_HOST
+        value: mysql-daniloex.alwaysdata.net  # ZAMIJENI SA TVOJIM
+      - key: DB_USER
+        value: daniloex                 # ZAMIJENI
+      - key: DB_PASSWORD
+        value: Sladaksok1@                    # ZAMIJENI
+      - key: DB_NAME
+        value: daniloex_rentacar_db      # ZAMIJENI
+      - key: PORT
+        value: 5000

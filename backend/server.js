@@ -1,6 +1,18 @@
 const express = require('express');
 const mysql = require('mysql2/promise');
 const cors = require('cors');
+
+// CORS opcije - dozvoli i lokalni i produkcijski frontend
+const corsOptions = {
+    origin: [
+        'http://localhost:5173',           // Lokalni Vite
+        'http://localhost:3000',           // Alternativa
+        'https://tvoj-frontend.vercel.app' // ZAMIJENI SA TVOJIM VERCEL URL-OM KASNIJE
+    ],
+    optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
 require('dotenv').config();
 
 const app = express();
