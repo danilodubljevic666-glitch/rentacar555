@@ -34,7 +34,10 @@ const AdminPanel = ({ admin, onLogout }) => {
             });
             
             if (response.status === 401 || response.status === 403) {
-                handleLogout();
+                // Ako nije autorizovan, samo izlogujemo (bez dugmeta)
+                localStorage.removeItem('adminToken');
+                localStorage.removeItem('adminUser');
+                onLogout();
                 return;
             }
             
@@ -144,12 +147,6 @@ const AdminPanel = ({ admin, onLogout }) => {
         }
     };
 
-    const handleLogout = () => {
-        localStorage.removeItem('adminToken');
-        localStorage.removeItem('adminUser');
-        onLogout();
-    };
-
     const filteredReservations = reservations.filter(res => {
         if (filter === 'all') return true;
         return res.status === filter;
@@ -203,17 +200,9 @@ const AdminPanel = ({ admin, onLogout }) => {
                 </div>
             )}
 
-            <div className="flex justify-between items-center mb-8">
-                <div>
-                    <h1 className="text-3xl font-bold">Admin Panel</h1>
-                    <p className="text-gray-600">Prijavljeni ste kao: {admin?.username}</p>
-                </div>
-                <button
-                    onClick={handleLogout}
-                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                >
-                    Odjavi se
-                </button>
+            <div className="mb-8">
+                <h1 className="text-3xl font-bold">Admin Panel</h1>
+                <p className="text-gray-600">Prijavljeni ste kao: {admin?.username}</p>
             </div>
             
             {stats && (
