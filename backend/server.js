@@ -3,15 +3,14 @@ const mysql = require('mysql2/promise');
 const cors = require('cors');
 require('dotenv').config();
 
-// 1. Prvo kreiraj Express aplikaciju
 const app = express();
 
-// 2. CORS podešen za lokalni i produkcijski frontend - BEZ / NA KRAJU!
+// CORS podešen za tvoje URL-ove
 const corsOptions = {
     origin: [
         'http://localhost:5173',
         'http://localhost:3000',
-        'https://rentacar555-jwgs.vercel.app'  // ← IZBACIO SAM /
+        'https://rentacar555-jwgs.vercel.app'
     ],
     credentials: true,
     optionsSuccessStatus: 200
@@ -19,7 +18,7 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
-// 3. MySQL konekcija
+// MySQL konekcija
 const pool = mysql.createPool({
     host: process.env.DB_HOST || 'localhost',
     user: process.env.DB_USER || 'root',
@@ -36,22 +35,24 @@ const pool = mysql.createPool({
 async function checkExpiredReservations() {
     const connection = await pool.getConnection();
     try {
+        const today = new Date().toISOString().split('T')[0];
+        
         const [expiredReservations] = await connection.execute(`
             SELECT id, car_id, end_date 
             FROM reservations 
-            WHERE end_date < CURDATE() 
+            WHERE end_date < ? 
             AND status IN ('confirmed', 'pending')
-        `);
+        `, [today]);
         
         if (expiredReservations.length > 0) {
-            console.log(`Pronađeno ${expiredReservations.length} isteklih rezervacija - automatski označene kao završene`);
+            console.log(`[${new Date().toISOString()}] Pronađeno ${expiredReservations.length} isteklih rezervacija - automatski označene kao završene`);
             
             await connection.execute(`
                 UPDATE reservations 
                 SET status = 'completed' 
-                WHERE end_date < CURDATE() 
+                WHERE end_date < ? 
                 AND status IN ('confirmed', 'pending')
-            `);
+            `, [today]);
         }
     } catch (error) {
         console.error('Greška pri provjeri isteklih rezervacija:', error);
@@ -62,12 +63,12 @@ async function checkExpiredReservations() {
 
 // Pokreni provjeru odmah pri pokretanju servera
 checkExpiredReservations();
-setInterval(checkExpiredReservations, 6 * 60 * 60 * 1000);
+// Pokreći provjeru svakih 5 minuta
+setInterval(checkExpiredReservations, 5 * 60 * 1000);
 
 // ============================================
-// TEST RUTE
+// TEST RUTA
 // ============================================
-
 app.get('/api/test', async (req, res) => {
     try {
         const [rows] = await pool.execute('SELECT 1 + 1 AS solution');
@@ -86,6 +87,7 @@ app.get('/api/test', async (req, res) => {
 // JAVNE RUTE (za korisnike)
 // ============================================
 
+// Svi automobili
 app.get('/api/cars', async (req, res) => {
     try {
         const [rows] = await pool.execute('SELECT * FROM cars WHERE is_active = true');
@@ -95,7 +97,11 @@ app.get('/api/cars', async (req, res) => {
     }
 });
 
+// Dostupni automobili za odabrani period
 app.get('/api/available-cars', async (req, res) => {
+    // Prvo provjeri istekle rezervacije
+    await checkExpiredReservations();
+    
     const { start_date, end_date } = req.query;
     
     if (!start_date || !end_date) {
@@ -125,6 +131,7 @@ app.get('/api/available-cars', async (req, res) => {
     }
 });
 
+// Kreiranje nove rezervacije
 app.post('/api/reservations', async (req, res) => {
     const connection = await pool.getConnection();
     await connection.beginTransaction();
@@ -140,7 +147,7 @@ app.post('/api/reservations', async (req, res) => {
             AND (
                 (start_date BETWEEN ? AND ?) OR
                 (end_date BETWEEN ? AND ?) OR
-                (start_date <= ? AND end_date >= ?)
+                (start_date <= ? AND r.end_date >= ?)
             )
         `, [car_id, start_date, end_date, start_date, end_date, start_date, end_date]);
         
@@ -171,9 +178,10 @@ app.post('/api/reservations', async (req, res) => {
 });
 
 // ============================================
-// ADMIN RUTE (za admin panel)
+// ADMIN RUTE
 // ============================================
 
+// Admin login
 app.post('/api/admin/login', async (req, res) => {
     const { username, password } = req.body;
     
@@ -205,6 +213,7 @@ app.post('/api/admin/login', async (req, res) => {
     }
 });
 
+// Sve rezervacije za admin panel
 app.get('/api/admin/reservations', async (req, res) => {
     try {
         await checkExpiredReservations();
@@ -244,6 +253,7 @@ app.get('/api/admin/reservations', async (req, res) => {
     }
 });
 
+// Statistika za admin panel
 app.get('/api/admin/stats', async (req, res) => {
     try {
         await checkExpiredReservations();
@@ -274,6 +284,7 @@ app.get('/api/admin/stats', async (req, res) => {
     }
 });
 
+// Ažuriranje statusa rezervacije - OVO RADI TRENUTNO!
 app.put('/api/admin/reservations/:id/status', async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
@@ -299,6 +310,9 @@ app.put('/api/admin/reservations/:id/status', async (req, res) => {
         
         await connection.commit();
         
+        // Kada se status promijeni u 'completed' ili 'cancelled', 
+        // auto će biti dostupan u /api/available-cars jer se tu gledaju samo 'pending' i 'confirmed'
+        
         res.json({ 
             success: true, 
             message: `Status rezervacije #${id} promijenjen u ${status}` 
@@ -311,6 +325,7 @@ app.put('/api/admin/reservations/:id/status', async (req, res) => {
     }
 });
 
+// Brisanje rezervacije
 app.delete('/api/admin/reservations/:id', async (req, res) => {
     const { id } = req.params;
     
@@ -322,6 +337,7 @@ app.delete('/api/admin/reservations/:id', async (req, res) => {
     }
 });
 
+// Detalji o autu sa svim rezervacijama
 app.get('/api/admin/cars/:id', async (req, res) => {
     const { id } = req.params;
     
@@ -350,6 +366,7 @@ app.get('/api/admin/cars/:id', async (req, res) => {
     }
 });
 
+// Root ruta
 app.get('/', (req, res) => {
     res.json({ 
         message: 'Rent-a-Car API radi!',
@@ -365,8 +382,9 @@ app.get('/', (req, res) => {
     });
 });
 
+// Pokretanje servera
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
     console.log(`Server radi na portu ${PORT}`);
-    console.log('Automatska provjera isteklih rezervacija aktivirana (svakih 6 sati)');
+    console.log('Automatska provjera isteklih rezervacija aktivirana (svakih 5 minuta)');
 });
