@@ -10,8 +10,8 @@ const AdminPanel = ({ admin, onLogout }) => {
     const [showCarDetails, setShowCarDetails] = useState(false);
     const [statusMessage, setStatusMessage] = useState({ show: false, text: '', type: '' });
 
-    // API URL iz environment varijable
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+    // TVOJ TAČAN BACKEND URL - hardkodirano za sigurnost
+    const API_URL = 'https://rentacar555-wjny.onrender.com';
 
     useEffect(() => {
         fetchReservations();
@@ -75,7 +75,6 @@ const AdminPanel = ({ admin, onLogout }) => {
     };
 
     const updateStatus = async (id, newStatus) => {
-        // Potvrda za važne akcije
         if (newStatus === 'completed') {
             if (!window.confirm('Da li ste sigurni da želite označiti ovu rezervaciju kao ZAVRŠENU? Auto će odmah postati dostupan za nove rezervacije.')) {
                 return;
@@ -105,7 +104,6 @@ const AdminPanel = ({ admin, onLogout }) => {
             const data = await response.json();
             
             if (response.ok) {
-                // Poruke za različite statuse
                 const statusMessages = {
                     'pending': '⏳ Rezervacija je vraćena na čekanje',
                     'confirmed': '✅ Rezervacija je potvrđena',
@@ -115,7 +113,6 @@ const AdminPanel = ({ admin, onLogout }) => {
                 
                 showMessage(statusMessages[newStatus] || 'Status ažuriran');
                 
-                // Osvježi liste
                 await fetchReservations();
                 await fetchStats();
             } else {
@@ -233,7 +230,6 @@ const AdminPanel = ({ admin, onLogout }) => {
 
     return (
         <div className="container mx-auto px-4 py-8">
-            {/* Status poruka */}
             {statusMessage.show && (
                 <div className={`fixed top-20 right-4 z-50 p-4 rounded-lg shadow-lg animate-fade-in ${
                     statusMessage.type === 'error' ? 'bg-red-500' : 'bg-green-500'
@@ -242,7 +238,6 @@ const AdminPanel = ({ admin, onLogout }) => {
                 </div>
             )}
 
-            {/* Header sa info o adminu */}
             <div className="flex justify-between items-center mb-8">
                 <div>
                     <h1 className="text-3xl font-bold">Admin Panel</h1>
@@ -270,7 +265,6 @@ const AdminPanel = ({ admin, onLogout }) => {
                 </div>
             </div>
             
-            {/* Statistika */}
             {stats && (
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
                     <div className="bg-white rounded-lg shadow p-6">
@@ -302,7 +296,6 @@ const AdminPanel = ({ admin, onLogout }) => {
                 </div>
             )}
             
-            {/* Filteri */}
             <div className="bg-white rounded-lg shadow p-4 mb-4">
                 <div className="flex flex-wrap gap-4 items-center">
                     <div>
@@ -343,44 +336,25 @@ const AdminPanel = ({ admin, onLogout }) => {
                 </div>
             </div>
             
-            {/* Tabela rezervacija */}
             <div className="bg-white rounded-lg shadow overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                             <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    ID
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Automobil
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Kupac
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Period
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Cijena
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Status
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Rezervisano
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Akcije
-                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Automobil</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kupac</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Period</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cijena</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rezervisano</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Akcije</th>
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
                             {filteredReservations.map(res => (
                                 <tr key={res.id} className="hover:bg-gray-50 transition-colors">
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        #{res.id}
-                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">#{res.id}</td>
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <button
                                             onClick={() => fetchCarDetails(res.car_id)}
@@ -395,22 +369,14 @@ const AdminPanel = ({ admin, onLogout }) => {
                                         <div className="text-sm text-gray-500">{res.customer_phone}</div>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
-                                        <div className="text-sm text-gray-900">
-                                            {res.start_date}
-                                        </div>
-                                        <div className="text-sm text-gray-500">
-                                            do {res.end_date}
-                                        </div>
+                                        <div className="text-sm text-gray-900">{res.start_date}</div>
+                                        <div className="text-sm text-gray-500">do {res.end_date}</div>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-bold">
                                         €{parseFloat(res.total_price).toFixed(2)}
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        {getStatusBadge(res.status)}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        {res.created_at}
-                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap">{getStatusBadge(res.status)}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{res.created_at}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                         <div className="flex flex-col gap-2">
                                             <select 
@@ -451,20 +417,12 @@ const AdminPanel = ({ admin, onLogout }) => {
                 )}
             </div>
 
-            {/* Modal za detalje auta */}
             {showCarDetails && selectedCar && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
                     <div className="bg-white rounded-lg max-w-2xl w-full p-6 max-h-[80vh] overflow-y-auto">
                         <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-2xl font-bold">
-                                {selectedCar.car.brand} {selectedCar.car.model}
-                            </h2>
-                            <button
-                                onClick={() => setShowCarDetails(false)}
-                                className="text-gray-500 hover:text-gray-700 text-2xl"
-                            >
-                                ✕
-                            </button>
+                            <h2 className="text-2xl font-bold">{selectedCar.car.brand} {selectedCar.car.model}</h2>
+                            <button onClick={() => setShowCarDetails(false)} className="text-gray-500 hover:text-gray-700 text-2xl">✕</button>
                         </div>
                         
                         <div className="mb-4 p-4 bg-gray-50 rounded-lg">

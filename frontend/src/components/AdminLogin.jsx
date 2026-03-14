@@ -6,32 +6,34 @@ const AdminLogin = ({ onLogin }) => {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
+    // TVOJ TAČAN BACKEND URL - hardkodirano za sigurnost
+    const API_URL = 'https://rentacar555-wjny.onrender.com';
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
         setError('');
 
         try {
-           const API_URL = import.meta.env.VITE_API_URL || 'https://rentacar555-wjny.onrender.com';
-
-// U fetch pozivu:
-const response = await fetch(`${API_URL}/api/admin/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password })
-});
+            const response = await fetch(`${API_URL}/api/admin/login`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ username, password })
+            });
 
             const data = await response.json();
 
             if (response.ok) {
-                // Sačuvaj token u localStorage
-                localStorage.setItem('adminToken', data.token);
+                localStorage.setItem('adminToken', 'logged-in');
                 localStorage.setItem('adminUser', JSON.stringify(data.admin));
                 onLogin(data.admin);
             } else {
                 setError(data.error || 'Pogrešno korisničko ime ili šifra');
             }
         } catch (error) {
+            console.error('Greška:', error);
             setError('Greška pri povezivanju sa serverom');
         } finally {
             setLoading(false);
