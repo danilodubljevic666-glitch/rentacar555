@@ -177,7 +177,7 @@ app.post('/api/admin/login', async (req, res) => {
     }
 });
 
-// 9. Dohvati sve rezervacije (za admin panel)
+// 9. Dohvati sve rezervacije (za admin panel) - samo aktivne
 app.get('/api/admin/reservations', async (req, res) => {
     try {
         const [rows] = await pool.execute(`
@@ -197,6 +197,7 @@ app.get('/api/admin/reservations', async (req, res) => {
                 CONCAT(c.brand, ' ', c.model, ' ', c.year) as car_name
             FROM reservations r
             JOIN cars c ON r.car_id = c.id
+            WHERE r.status IN ('pending', 'confirmed', 'cancelled')
             ORDER BY r.created_at DESC
         `);
         
@@ -207,14 +208,14 @@ app.get('/api/admin/reservations', async (req, res) => {
     }
 });
 
-// 10. Dohvati statistiku za admin panel
+// 10. Dohvati statistiku za admin panel (posljednja 24h)
 app.get('/api/admin/stats', async (req, res) => {
     try {
-        // Ukupan broj rezervacija
-        const [totalRes] = await pool.execute('SELECT COUNT(*) as total FROM reservations');
+        // Ukupan broj rezervacija u posljednja 24h
+        const [totalRes] = await pool.execute('SELECT COUNT(*) as total FROM reservations WHERE created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)');
         
-        // Ukupna zarada
-        const [totalEarnings] = await pool.execute('SELECT SUM(total_price) as total FROM reservations WHERE status IN ("confirmed", "completed")');
+        // Ukupna zarada u posljednja 24h
+        const [totalEarnings] = await pool.execute('SELECT SUM(total_price) as total FROM reservations WHERE status IN ("confirmed", "completed") AND created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)');
         
         // Aktivne rezervacije
         const [activeRes] = await pool.execute(`
