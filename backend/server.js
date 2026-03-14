@@ -139,6 +139,7 @@ app.post('/api/reservations', async (req, res) => {
     try {
         const { car_id, customer_name, customer_email, customer_phone, start_date, end_date } = req.body;
         
+        // ISPRAVLJEN UPIT - bez r.end_date
         const [availability] = await connection.execute(`
             SELECT COUNT(*) as count 
             FROM reservations 
@@ -147,7 +148,7 @@ app.post('/api/reservations', async (req, res) => {
             AND (
                 (start_date BETWEEN ? AND ?) OR
                 (end_date BETWEEN ? AND ?) OR
-                (start_date <= ? AND r.end_date >= ?)
+                (start_date <= ? AND end_date >= ?)
             )
         `, [car_id, start_date, end_date, start_date, end_date, start_date, end_date]);
         
@@ -156,12 +157,14 @@ app.post('/api/reservations', async (req, res) => {
             return res.status(400).json({ error: 'Auto nije dostupan' });
         }
         
+        // Izračunaj cijenu
         const [carPrice] = await connection.execute('SELECT price_per_day FROM cars WHERE id = ?', [car_id]);
         const start = new Date(start_date);
         const end = new Date(end_date);
         const days = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
         const total_price = carPrice[0].price_per_day * days;
         
+        // Kreiraj rezervaciju
         const [reservation] = await connection.execute(`
             INSERT INTO reservations (car_id, customer_name, customer_email, customer_phone, start_date, end_date, total_price)
             VALUES (?, ?, ?, ?, ?, ?, ?)
