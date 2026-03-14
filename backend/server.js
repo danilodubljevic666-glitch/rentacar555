@@ -9,9 +9,11 @@ const app = express();
 // 2. CORS podešen za lokalni i produkcijski frontend
 const corsOptions = {
     origin: [
-        'http://localhost:5173',
-        'http://localhost:3000',
-        'https://rentacar555-jwgs.vercel.app'
+        'http://localhost:5173',      // Vite dev server
+        'http://localhost:3000',      // Alternativni port
+        'https://rentacar555-jwgs.vercel.app',  // Vercel produkcija
+        'https://rent-a-car-project.vercel.app', // Alternativna Vercel domena
+        'https://rentacar-backend.onrender.com' // Render backend (ako treba)
     ],
     credentials: true,
     optionsSuccessStatus: 200
