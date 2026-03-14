@@ -79,16 +79,13 @@ const AdminPanel = ({ admin, onLogout }) => {
             });
             
             if (response.ok) {
-                // Kad je status postavljen na "completed", makni rezervaciju iz lokalnog stanja
-                // kako bi auto postao opet dostupan za rezervisanje.
-                if (newStatus === 'completed') {
-                    setReservations((prev) => prev.filter((r) => r.id !== id));
-                    alert('Rezervacija je završena! Auto je sada dostupan za rezervisanje na home page-u.');
-                } else {
-                    fetchReservations();
-                }
-
+                // Uvijek refresh-uj listu rezervacija nakon ažuriranja statusa
+                fetchReservations();
                 fetchStats();
+                
+                if (newStatus === 'completed') {
+                    alert('Rezervacija je završena! Auto je sada dostupan za rezervisanje na home page-u.');
+                }
             } else {
                 alert('Greška pri ažuriranju statusa rezervacije.');
             }
@@ -193,6 +190,12 @@ const AdminPanel = ({ admin, onLogout }) => {
                     <h1 className="text-3xl font-bold">Admin Panel</h1>
                     <p className="text-gray-600">Prijavljeni ste kao: {admin?.username}</p>
                 </div>
+                <button
+                    onClick={() => { fetchReservations(); fetchStats(); }}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                    🔄 Osvježi
+                </button>
             </div>
             
             {/* Statistika */}
