@@ -8,6 +8,7 @@ const AdminPanel = ({ admin, onLogout }) => {
     const [dateFilter, setDateFilter] = useState('');
     const [selectedCar, setSelectedCar] = useState(null);
     const [showCarDetails, setShowCarDetails] = useState(false);
+    const [statusMessage, setStatusMessage] = useState({ show: false, text: '', type: '' });
 
     // API URL iz environment varijable
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -21,6 +22,11 @@ const AdminPanel = ({ admin, onLogout }) => {
         'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
     });
 
+    const showMessage = (text, type = 'success') => {
+        setStatusMessage({ show: true, text, type });
+        setTimeout(() => setStatusMessage({ show: false, text: '', type: '' }), 3000);
+    };
+
     const fetchReservations = async () => {
         try {
             const response = await fetch(`${API_URL}/api/admin/reservations`, {
@@ -28,7 +34,6 @@ const AdminPanel = ({ admin, onLogout }) => {
             });
             
             if (response.status === 401 || response.status === 403) {
-                // Token nije validan, odjavi se
                 handleLogout();
                 return;
             }
@@ -37,6 +42,7 @@ const AdminPanel = ({ admin, onLogout }) => {
             setReservations(data);
         } catch (error) {
             console.error('Greška pri učitavanju rezervacija:', error);
+            showMessage('Greška pri učitavanju rezervacija', 'error');
         }
     };
 
@@ -64,12 +70,30 @@ const AdminPanel = ({ admin, onLogout }) => {
             setShowCarDetails(true);
         } catch (error) {
             console.error('Greška pri učitavanju detalja auta:', error);
+            showMessage('Greška pri učitavanju detalja auta', 'error');
         }
     };
 
     const updateStatus = async (id, newStatus) => {
+        // Potvrda za važne akcije
+        if (newStatus === 'completed') {
+            if (!window.confirm('Da li ste sigurni da želite označiti ovu rezervaciju kao ZAVRŠENU? Auto će odmah postati dostupan za nove rezervacije.')) {
+                return;
+            }
+        }
+        if (newStatus === 'cancelled') {
+            if (!window.confirm('Da li ste sigurni da želite OTKAZATI ovu rezervaciju? Auto će odmah postati dostupan.')) {
+                return;
+            }
+        }
+        if (newStatus === 'confirmed') {
+            if (!window.confirm('Da li ste sigurni da želite POTVRDITI ovu rezervaciju?')) {
+                return;
+            }
+        }
+
         try {
-           const response = await fetch(`${API_URL}/api/admin/reservations/${id}/status`, {
+            const response = await fetch(`${API_URL}/api/admin/reservations/${id}/status`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -78,25 +102,33 @@ const AdminPanel = ({ admin, onLogout }) => {
                 body: JSON.stringify({ status: newStatus })
             });
             
+            const data = await response.json();
+            
             if (response.ok) {
-                // Uvijek refresh-uj listu rezervacija nakon ažuriranja statusa
-                fetchReservations();
-                fetchStats();
+                // Poruke za različite statuse
+                const statusMessages = {
+                    'pending': '⏳ Rezervacija je vraćena na čekanje',
+                    'confirmed': '✅ Rezervacija je potvrđena',
+                    'completed': '🏁 Rezervacija je završena! Auto je sada dostupan za nove rezervacije.',
+                    'cancelled': '❌ Rezervacija je otkazana. Auto je odmah dostupan.'
+                };
                 
-                if (newStatus === 'completed') {
-                    alert('Rezervacija je završena! Auto je sada dostupan za rezervisanje na home page-u.');
-                }
+                showMessage(statusMessages[newStatus] || 'Status ažuriran');
+                
+                // Osvježi liste
+                await fetchReservations();
+                await fetchStats();
             } else {
-                alert('Greška pri ažuriranju statusa rezervacije.');
+                showMessage(data.error || 'Greška pri ažuriranju statusa', 'error');
             }
         } catch (error) {
             console.error('Greška pri ažuriranju statusa:', error);
-            alert('Došlo je do greške pri ažuriranju statusa.');
+            showMessage('Došlo je do greške pri ažuriranju statusa', 'error');
         }
     };
 
     const deleteReservation = async (id) => {
-        if (window.confirm('Da li ste sigurni da želite obrisati ovu rezervaciju?')) {
+        if (window.confirm('Da li ste sigurni da želite OBRISATI ovu rezervaciju? Ova akcija je nepovratna!')) {
             try {
                 const response = await fetch(`${API_URL}/api/admin/reservations/${id}`, {
                     method: 'DELETE',
@@ -104,11 +136,13 @@ const AdminPanel = ({ admin, onLogout }) => {
                 });
                 
                 if (response.ok) {
+                    showMessage('Rezervacija je uspješno obrisana');
                     fetchReservations();
                     fetchStats();
                 }
             } catch (error) {
                 console.error('Greška pri brisanju rezervacije:', error);
+                showMessage('Greška pri brisanju rezervacije', 'error');
             }
         }
     };
@@ -129,10 +163,16 @@ const AdminPanel = ({ admin, onLogout }) => {
 
     const getStatusBadge = (status) => {
         const colors = {
-            'pending': 'bg-yellow-100 text-yellow-800',
-            'confirmed': 'bg-green-100 text-green-800',
-            'cancelled': 'bg-red-100 text-red-800',
-            'completed': 'bg-blue-100 text-blue-800'
+            'pending': 'bg-yellow-100 text-yellow-800 border border-yellow-200',
+            'confirmed': 'bg-green-100 text-green-800 border border-green-200',
+            'cancelled': 'bg-red-100 text-red-800 border border-red-200',
+            'completed': 'bg-blue-100 text-blue-800 border border-blue-200'
+        };
+        const icons = {
+            'pending': '⏳',
+            'confirmed': '✅',
+            'cancelled': '❌',
+            'completed': '🏁'
         };
         const statusText = {
             'pending': 'Na čekanju',
@@ -141,7 +181,8 @@ const AdminPanel = ({ admin, onLogout }) => {
             'completed': 'Završeno'
         };
         return (
-            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${colors[status] || 'bg-gray-100'}`}>
+            <span className={`px-2 py-1 rounded-full text-xs font-semibold flex items-center gap-1 w-fit ${colors[status] || 'bg-gray-100'}`}>
+                <span>{icons[status] || '•'}</span>
                 {statusText[status] || status}
             </span>
         );
@@ -158,7 +199,10 @@ const AdminPanel = ({ admin, onLogout }) => {
             r.start_date,
             r.end_date,
             r.total_price,
-            r.status,
+            r.status === 'pending' ? 'Na čekanju' :
+            r.status === 'confirmed' ? 'Potvrđeno' :
+            r.status === 'completed' ? 'Završeno' :
+            r.status === 'cancelled' ? 'Otkazano' : r.status,
             r.created_at
         ]);
         
@@ -166,12 +210,17 @@ const AdminPanel = ({ admin, onLogout }) => {
             .map(row => row.join(','))
             .join('\n');
         
-        const blob = new Blob([csvContent], { type: 'text/csv' });
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
         a.download = `rezervacije_${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
         a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        
+        showMessage('CSV fajl je preuzet');
     };
 
     if (loading) {
@@ -184,18 +233,41 @@ const AdminPanel = ({ admin, onLogout }) => {
 
     return (
         <div className="container mx-auto px-4 py-8">
+            {/* Status poruka */}
+            {statusMessage.show && (
+                <div className={`fixed top-20 right-4 z-50 p-4 rounded-lg shadow-lg animate-fade-in ${
+                    statusMessage.type === 'error' ? 'bg-red-500' : 'bg-green-500'
+                } text-white`}>
+                    {statusMessage.text}
+                </div>
+            )}
+
             {/* Header sa info o adminu */}
             <div className="flex justify-between items-center mb-8">
                 <div>
                     <h1 className="text-3xl font-bold">Admin Panel</h1>
                     <p className="text-gray-600">Prijavljeni ste kao: {admin?.username}</p>
                 </div>
-                <button
-                    onClick={() => { fetchReservations(); fetchStats(); }}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                    🔄 Osvježi
-                </button>
+                <div className="flex gap-2">
+                    <button
+                        onClick={exportToCSV}
+                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+                    >
+                        📥 CSV
+                    </button>
+                    <button
+                        onClick={() => { fetchReservations(); fetchStats(); }}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                    >
+                        🔄 Osvježi
+                    </button>
+                    <button
+                        onClick={handleLogout}
+                        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                    >
+                        Odjavi se
+                    </button>
+                </div>
             </div>
             
             {/* Statistika */}
@@ -213,7 +285,7 @@ const AdminPanel = ({ admin, onLogout }) => {
                     
                     <div className="bg-white rounded-lg shadow p-6">
                         <h3 className="text-gray-500 text-sm">Aktivne rezervacije</h3>
-                        <p className="text-3xl font-bold text-orange-600">{stats.active_reservations}</p>
+                        <p className="text-3xl font-bold text-orange-600">{stats.active_reservations || 0}</p>
                     </div>
                     
                     <div className="bg-white rounded-lg shadow p-6">
@@ -221,7 +293,7 @@ const AdminPanel = ({ admin, onLogout }) => {
                         <div className="space-y-1">
                             {stats.status_breakdown?.map(s => (
                                 <div key={s.status} className="flex justify-between text-sm">
-                                    <span>{s.status}:</span>
+                                    <span>{getStatusBadge(s.status)}</span>
                                     <span className="font-bold">{s.count}</span>
                                 </div>
                             ))}
@@ -238,7 +310,7 @@ const AdminPanel = ({ admin, onLogout }) => {
                         <select 
                             value={filter}
                             onChange={(e) => setFilter(e.target.value)}
-                            className="border border-gray-300 rounded-lg px-3 py-2"
+                            className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
                         >
                             <option value="all">Sve rezervacije</option>
                             <option value="pending">Na čekanju</option>
@@ -254,19 +326,20 @@ const AdminPanel = ({ admin, onLogout }) => {
                             type="month"
                             value={dateFilter}
                             onChange={(e) => setDateFilter(e.target.value)}
-                            className="border border-gray-300 rounded-lg px-3 py-2"
+                            className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
                         />
                     </div>
                     
-                    <button 
-                        onClick={() => {
-                            fetchReservations();
-                            fetchStats();
-                        }}
-                        className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 mt-6"
-                    >
-                        Osvježi
-                    </button>
+                    <div className="flex gap-2 mt-6">
+                        {filter !== 'all' && (
+                            <button
+                                onClick={() => setFilter('all')}
+                                className="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                            >
+                                ✕ Resetuj filter
+                            </button>
+                        )}
+                    </div>
                 </div>
             </div>
             
@@ -304,7 +377,7 @@ const AdminPanel = ({ admin, onLogout }) => {
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
                             {filteredReservations.map(res => (
-                                <tr key={res.id} className="hover:bg-gray-50">
+                                <tr key={res.id} className="hover:bg-gray-50 transition-colors">
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                         #{res.id}
                                     </td>
@@ -339,11 +412,17 @@ const AdminPanel = ({ admin, onLogout }) => {
                                         {res.created_at}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                        <div className="flex gap-2">
+                                        <div className="flex flex-col gap-2">
                                             <select 
                                                 value={res.status}
                                                 onChange={(e) => updateStatus(res.id, e.target.value)}
-                                                className="text-xs border border-gray-300 rounded px-2 py-1"
+                                                className={`text-xs border rounded px-2 py-1 ${
+                                                    res.status === 'pending' ? 'border-yellow-300 bg-yellow-50' :
+                                                    res.status === 'confirmed' ? 'border-green-300 bg-green-50' :
+                                                    res.status === 'completed' ? 'border-blue-300 bg-blue-50' :
+                                                    res.status === 'cancelled' ? 'border-red-300 bg-red-50' :
+                                                    'border-gray-300'
+                                                }`}
                                             >
                                                 <option value="pending">Na čekanju</option>
                                                 <option value="confirmed">Potvrdi</option>
@@ -352,10 +431,10 @@ const AdminPanel = ({ admin, onLogout }) => {
                                             </select>
                                             <button
                                                 onClick={() => deleteReservation(res.id)}
-                                                className="text-red-600 hover:text-red-900"
-                                                title="Obriši"
+                                                className="text-red-600 hover:text-red-900 text-xs flex items-center gap-1"
+                                                title="Obriši rezervaciju"
                                             >
-                                                🗑️
+                                                <span>🗑️</span> Obriši
                                             </button>
                                         </div>
                                     </td>
@@ -382,26 +461,31 @@ const AdminPanel = ({ admin, onLogout }) => {
                             </h2>
                             <button
                                 onClick={() => setShowCarDetails(false)}
-                                className="text-gray-500 hover:text-gray-700"
+                                className="text-gray-500 hover:text-gray-700 text-2xl"
                             >
                                 ✕
                             </button>
                         </div>
                         
-                        <div className="mb-4 p-4 bg-gray-50 rounded">
-                            <p><strong>Godište:</strong> {selectedCar.car.year}</p>
-                            <p><strong>Cijena po danu:</strong> €{selectedCar.car.price_per_day}</p>
-                            <p><strong>Mjenjač:</strong> {selectedCar.car.transmission}</p>
-                            <p><strong>Gorivo:</strong> {selectedCar.car.fuel_type}</p>
+                        <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+                            <p className="mb-1"><strong>Godište:</strong> {selectedCar.car.year}</p>
+                            <p className="mb-1"><strong>Cijena po danu:</strong> €{selectedCar.car.price_per_day}</p>
+                            <p className="mb-1"><strong>Mjenjač:</strong> {selectedCar.car.transmission === 'manual' ? 'Manuelni' : 'Automatski'}</p>
+                            <p className="mb-1"><strong>Gorivo:</strong> {
+                                selectedCar.car.fuel_type === 'petrol' ? 'Benzin' :
+                                selectedCar.car.fuel_type === 'diesel' ? 'Dizel' :
+                                selectedCar.car.fuel_type === 'electric' ? 'Električni' : 'Hibrid'
+                            }</p>
                             <p><strong>Sjedišta:</strong> {selectedCar.car.seats}</p>
                         </div>
                         
                         <h3 className="font-bold mb-2">Sve rezervacije za ovaj auto:</h3>
-                        <div className="space-y-2">
+                        <div className="space-y-2 max-h-60 overflow-y-auto">
                             {selectedCar.reservations.map(r => (
-                                <div key={r.id} className="p-3 border rounded">
-                                    <p><strong>{r.customer_name}</strong> - {r.start_date} do {r.end_date}</p>
-                                    <p className="text-sm text-gray-600">Status: {r.status}</p>
+                                <div key={r.id} className="p-3 border rounded-lg hover:bg-gray-50">
+                                    <p className="font-medium">{r.customer_name}</p>
+                                    <p className="text-sm text-gray-600">{r.start_date} - {r.end_date}</p>
+                                    <p className="text-xs text-gray-500 mt-1">Status: {getStatusBadge(r.status)}</p>
                                 </div>
                             ))}
                         </div>
