@@ -83,14 +83,18 @@ const AdminPanel = ({ admin, onLogout }) => {
                 // kako bi auto postao opet dostupan za rezervisanje.
                 if (newStatus === 'completed') {
                     setReservations((prev) => prev.filter((r) => r.id !== id));
+                    alert('Rezervacija je završena! Auto je sada dostupan za rezervisanje na home page-u.');
                 } else {
                     fetchReservations();
                 }
 
                 fetchStats();
+            } else {
+                alert('Greška pri ažuriranju statusa rezervacije.');
             }
         } catch (error) {
             console.error('Greška pri ažuriranju statusa:', error);
+            alert('Došlo je do greške pri ažuriranju statusa.');
         }
     };
 

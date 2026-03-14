@@ -134,6 +134,21 @@ const CarList = () => {
                 </div>
             </div>
 
+            {/* Dugme za refresh */}
+            <div className="flex justify-center mb-6">
+                <button
+                    onClick={fetchAvailableCars}
+                    disabled={loading}
+                    className={`px-6 py-2 rounded-lg font-medium transition-colors ${
+                        loading 
+                            ? 'bg-gray-400 cursor-not-allowed' 
+                            : 'bg-blue-600 text-white hover:bg-blue-700'
+                    }`}
+                >
+                    🔄 {loading ? 'Učitavanje...' : 'Osvježi listu automobila'}
+                </button>
+            </div>
+
             {/* Lista automobila */}
             {loading ? (
                 <div className="text-center py-8">
