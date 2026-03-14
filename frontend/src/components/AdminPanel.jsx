@@ -185,41 +185,6 @@ const AdminPanel = ({ admin, onLogout }) => {
         );
     };
 
-    const exportToCSV = () => {
-        const headers = ['ID', 'Automobil', 'Kupac', 'Email', 'Telefon', 'Od datuma', 'Do datuma', 'Cijena', 'Status', 'Rezervisano'];
-        const csvData = filteredReservations.map(r => [
-            r.id,
-            r.car_name,
-            r.customer_name,
-            r.customer_email,
-            r.customer_phone,
-            r.start_date,
-            r.end_date,
-            r.total_price,
-            r.status === 'pending' ? 'Na čekanju' :
-            r.status === 'confirmed' ? 'Potvrđeno' :
-            r.status === 'completed' ? 'Završeno' :
-            r.status === 'cancelled' ? 'Otkazano' : r.status,
-            r.created_at
-        ]);
-        
-        const csvContent = [headers, ...csvData]
-            .map(row => row.join(','))
-            .join('\n');
-        
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `rezervacije_${new Date().toISOString().split('T')[0]}.csv`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
-        
-        showMessage('CSV fajl je preuzet');
-    };
-
     if (loading) {
         return (
             <div className="flex justify-center items-center h-64">
@@ -243,26 +208,12 @@ const AdminPanel = ({ admin, onLogout }) => {
                     <h1 className="text-3xl font-bold">Admin Panel</h1>
                     <p className="text-gray-600">Prijavljeni ste kao: {admin?.username}</p>
                 </div>
-                <div className="flex gap-2">
-                    <button
-                        onClick={exportToCSV}
-                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
-                    >
-                        📥 CSV
-                    </button>
-                    <button
-                        onClick={() => { fetchReservations(); fetchStats(); }}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-                    >
-                        🔄 Osvježi
-                    </button>
-                    <button
-                        onClick={handleLogout}
-                        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                    >
-                        Odjavi se
-                    </button>
-                </div>
+                <button
+                    onClick={handleLogout}
+                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                >
+                    Odjavi se
+                </button>
             </div>
             
             {stats && (
