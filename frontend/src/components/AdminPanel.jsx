@@ -9,6 +9,9 @@ const AdminPanel = ({ admin, onLogout }) => {
     const [selectedCar, setSelectedCar] = useState(null);
     const [showCarDetails, setShowCarDetails] = useState(false);
 
+    // API URL iz environment varijable
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
     useEffect(() => {
         fetchReservations();
         fetchStats();
@@ -20,7 +23,7 @@ const AdminPanel = ({ admin, onLogout }) => {
 
     const fetchReservations = async () => {
         try {
-            const response = await fetch('http://localhost:5000/api/admin/reservations', {
+            const response = await fetch(`${API_URL}/api/admin/reservations`, {
                 headers: getAuthHeader()
             });
             
@@ -39,7 +42,7 @@ const AdminPanel = ({ admin, onLogout }) => {
 
     const fetchStats = async () => {
         try {
-            const response = await fetch('http://localhost:5000/api/admin/stats', {
+            const response = await fetch(`${API_URL}/api/admin/stats`, {
                 headers: getAuthHeader()
             });
             const data = await response.json();
@@ -53,7 +56,7 @@ const AdminPanel = ({ admin, onLogout }) => {
 
     const fetchCarDetails = async (carId) => {
         try {
-            const response = await fetch(`http://localhost:5000/api/admin/cars/${carId}`, {
+            const response = await fetch(`${API_URL}/api/admin/cars/${carId}`, {
                 headers: getAuthHeader()
             });
             const data = await response.json();
@@ -66,12 +69,14 @@ const AdminPanel = ({ admin, onLogout }) => {
 
     const updateStatus = async (id, newStatus) => {
         try {
-           const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-
-// U svim fetch pozivima:
-const response = await fetch(`${API_URL}/api/admin/reservations`, {
-    headers: getAuthHeader()
-});
+           const response = await fetch(`${API_URL}/api/admin/reservations/${id}/status`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...getAuthHeader()
+                },
+                body: JSON.stringify({ status: newStatus })
+            });
             
             if (response.ok) {
                 // Kad je status postavljen na "completed", makni rezervaciju iz lokalnog stanja
@@ -92,7 +97,7 @@ const response = await fetch(`${API_URL}/api/admin/reservations`, {
     const deleteReservation = async (id) => {
         if (window.confirm('Da li ste sigurni da želite obrisati ovu rezervaciju?')) {
             try {
-                const response = await fetch(`http://localhost:5000/api/admin/reservations/${id}`, {
+                const response = await fetch(`${API_URL}/api/admin/reservations/${id}`, {
                     method: 'DELETE',
                     headers: getAuthHeader()
                 });
