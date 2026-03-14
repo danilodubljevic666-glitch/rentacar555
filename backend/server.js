@@ -131,7 +131,7 @@ app.get('/api/available-cars', async (req, res) => {
     }
 });
 
-// Kreiranje nove rezervacije
+// Kreiranje nove rezervacije - ISPRAVLJENO!
 app.post('/api/reservations', async (req, res) => {
     const connection = await pool.getConnection();
     await connection.beginTransaction();
@@ -139,7 +139,7 @@ app.post('/api/reservations', async (req, res) => {
     try {
         const { car_id, customer_name, customer_email, customer_phone, start_date, end_date } = req.body;
         
-        // ISPRAVLJEN UPIT - bez r.end_date
+        // ISPRAVLJEN UPIT - uklonjen 'r.' ispred end_date
         const [availability] = await connection.execute(`
             SELECT COUNT(*) as count 
             FROM reservations 
@@ -174,6 +174,7 @@ app.post('/api/reservations', async (req, res) => {
         res.json({ success: true, reservation_id: reservation.insertId });
     } catch (error) {
         await connection.rollback();
+        console.error('Greška pri kreiranju rezervacije:', error);
         res.status(500).json({ error: error.message });
     } finally {
         connection.release();
@@ -287,7 +288,7 @@ app.get('/api/admin/stats', async (req, res) => {
     }
 });
 
-// Ažuriranje statusa rezervacije - OVO RADI TRENUTNO!
+// Ažuriranje statusa rezervacije
 app.put('/api/admin/reservations/:id/status', async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
@@ -312,9 +313,6 @@ app.put('/api/admin/reservations/:id/status', async (req, res) => {
         );
         
         await connection.commit();
-        
-        // Kada se status promijeni u 'completed' ili 'cancelled', 
-        // auto će biti dostupan u /api/available-cars jer se tu gledaju samo 'pending' i 'confirmed'
         
         res.json({ 
             success: true, 
