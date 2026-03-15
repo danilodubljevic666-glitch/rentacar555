@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import HeroSection from './components/HeroSection';
-import CarList from './components/CarList';
-import Contact from './components/Contact'; // Dodaj ovo
+import CarListWithStatus from './components/CarListWithStatus'; // ← PROMIJENI OVO!
+import Contact from './components/Contact';
 import AdminLogin from './components/AdminLogin';
 import AdminPanel from './components/AdminPanel';
 import Footer from './components/Footer';
@@ -10,8 +10,15 @@ function App() {
   const [view, setView] = useState('user');
   const [admin, setAdmin] = useState(null);
 
-  // Na svaki refresh ostajemo na početnoj (user) strani.
-  // Ako želiš da se automatski uloguješ, moraš kliknuti na "Admin" dugme.
+  useEffect(() => {
+    const token = localStorage.getItem('adminToken');
+    const savedAdmin = localStorage.getItem('adminUser');
+    
+    if (token && savedAdmin) {
+      setAdmin(JSON.parse(savedAdmin));
+      setView('admin-panel');
+    }
+  }, []);
 
   const handleLogin = (adminData) => {
     setAdmin(adminData);
@@ -25,7 +32,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
-      {/* Navigacija */}
+      {/* Navigacija - ISTO KAO RANIJE */}
       <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         view === 'user' ? 'bg-transparent' : 'bg-white shadow-lg'
       }`}>
@@ -79,8 +86,8 @@ function App() {
         {view === 'user' && (
           <>
             <HeroSection />
-            <CarList />
-            <Contact /> {/* Dodaj Contact sekciju ovdje */}
+            <CarListWithStatus /> {/* ← OVDJE KORISTIMO NOVU KOMPONENTU */}
+            <Contact />
           </>
         )}
         {view === 'admin-login' && <AdminLogin onLogin={handleLogin} />}

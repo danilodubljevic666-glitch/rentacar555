@@ -87,7 +87,7 @@ app.get('/api/test', async (req, res) => {
 // JAVNE RUTE (za korisnike)
 // ============================================
 
-// Svi automobili
+// Svi automobili (osnovno)
 app.get('/api/cars', async (req, res) => {
     try {
         const [rows] = await pool.execute('SELECT * FROM cars WHERE is_active = true');
@@ -97,7 +97,84 @@ app.get('/api/cars', async (req, res) => {
     }
 });
 
-// Dostupni automobili za odabrani period
+// ============================================
+// NOVA RUTA - Svi automobili sa statusom dostupnosti
+// ============================================
+app.get('/api/cars-with-status', async (req, res) => {
+    // Prvo provjeri istekle rezervacije
+    await checkExpiredReservations();
+    
+    const { start_date, end_date } = req.query;
+    
+    if (!start_date || !end_date) {
+        return res.status(400).json({ error: 'Start date i end date su obavezni' });
+    }
+    
+    try {
+        const [cars] = await pool.execute(`
+            SELECT c.*, 
+                   (SELECT JSON_OBJECT(
+                       'id', r.id,
+                       'end_date', DATE_FORMAT(r.end_date, '%d.%m.%Y'),
+                       'customer_name', r.customer_name,
+                       'start_date', DATE_FORMAT(r.start_date, '%d.%m.%Y')
+                   ) FROM reservations r 
+                    WHERE r.car_id = c.id 
+                    AND r.status IN ('pending', 'confirmed')
+                    AND (
+                        (r.start_date BETWEEN ? AND ?) OR
+                        (r.end_date BETWEEN ? AND ?) OR
+                        (r.start_date <= ? AND r.end_date >= ?)
+                    )
+                    LIMIT 1) as active_reservation
+            FROM cars c
+            WHERE c.is_active = true
+        `, [start_date, end_date, start_date, end_date, start_date, end_date]);
+        
+        // Formatiranje podataka - parsiranje JSON stringa
+        const formattedCars = cars.map(car => {
+            const carData = { ...car };
+            
+            // Ako postoji aktivna rezervacija, parsiraj je
+            if (carData.active_reservation && carData.active_reservation !== null) {
+                try {
+                    // Pokušaj parsirati JSON
+                    if (typeof carData.active_reservation === 'string') {
+                        carData.active_reservation = JSON.parse(carData.active_reservation);
+                    }
+                    carData.is_available = false;
+                    
+                    // Dodaj i info o tome da li je auto trenutno rezervisan
+                    const today = new Date().toISOString().split('T')[0];
+                    const resStart = carData.active_reservation.start_date.split('.').reverse().join('-');
+                    const resEnd = carData.active_reservation.end_date.split('.').reverse().join('-');
+                    
+                    // Da li je rezervacija aktivna danas?
+                    carData.is_currently_rented = today >= resStart && today <= resEnd;
+                    
+                } catch (e) {
+                    console.error('Greška pri parsiranju JSON-a:', e);
+                    carData.active_reservation = null;
+                    carData.is_available = true;
+                    carData.is_currently_rented = false;
+                }
+            } else {
+                carData.active_reservation = null;
+                carData.is_available = true;
+                carData.is_currently_rented = false;
+            }
+            
+            return carData;
+        });
+        
+        res.json(formattedCars);
+    } catch (error) {
+        console.error('Greška u cars-with-status:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Dostupni automobili za odabrani period (samo dostupni - za kompatibilnost)
 app.get('/api/available-cars', async (req, res) => {
     // Prvo provjeri istekle rezervacije
     await checkExpiredReservations();
@@ -131,7 +208,7 @@ app.get('/api/available-cars', async (req, res) => {
     }
 });
 
-// Kreiranje nove rezervacije - ISPRAVLJENO!
+// Kreiranje nove rezervacije
 app.post('/api/reservations', async (req, res) => {
     const connection = await pool.getConnection();
     await connection.beginTransaction();
@@ -139,7 +216,7 @@ app.post('/api/reservations', async (req, res) => {
     try {
         const { car_id, customer_name, customer_email, customer_phone, start_date, end_date } = req.body;
         
-        // ISPRAVLJEN UPIT - uklonjen 'r.' ispred end_date
+        // Provjera dostupnosti
         const [availability] = await connection.execute(`
             SELECT COUNT(*) as count 
             FROM reservations 
@@ -171,6 +248,16 @@ app.post('/api/reservations', async (req, res) => {
         `, [car_id, customer_name, customer_email, customer_phone, start_date, end_date, total_price]);
         
         await connection.commit();
+        
+        // OVDJE ĆEMO KASNIJE DODATI WHATSAPP NOTIFIKACIJU
+        // Za sada samo logujemo
+        console.log(`\n🚗 NOVA REZERVACIJA:`);
+        console.log(`   Auto: ${car_id}`);
+        console.log(`   Kupac: ${customer_name}`);
+        console.log(`   Telefon: ${customer_phone}`);
+        console.log(`   Period: ${start_date} - ${end_date}`);
+        console.log(`   Cijena: €${total_price}\n`);
+        
         res.json({ success: true, reservation_id: reservation.insertId });
     } catch (error) {
         await connection.rollback();
@@ -374,6 +461,7 @@ app.get('/', (req, res) => {
         endpoints: [
             '/api/test',
             '/api/cars',
+            '/api/cars-with-status',
             '/api/available-cars',
             '/api/reservations',
             '/api/admin/login',
@@ -388,4 +476,5 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
     console.log(`Server radi na portu ${PORT}`);
     console.log('Automatska provjera isteklih rezervacija aktivirana (svakih 5 minuta)');
+    console.log('Nova ruta dostupna: /api/cars-with-status');
 });
